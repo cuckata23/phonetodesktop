@@ -51,9 +51,8 @@ import com.google.api.services.tasks.model.Task;
  * <p>
  */
 public class GoogleTasksService extends IntentService {
-	private static final int NOTIFICATION_SEND = 42,
-			NOTIFICATION_SEND_LATER = 3, NOTIFICATION_ERROR = 1,
-			NOTIFICATION_NEED_AUTHORIZE = 2;
+	private static final int NOTIFICATION_SEND = 42, NOTIFICATION_SEND_LATER = 3,
+			NOTIFICATION_ERROR = 1, NOTIFICATION_NEED_AUTHORIZE = 2;
 
 	protected com.google.api.services.tasks.Tasks client;
 	private GoogleAccountCredential credential;
@@ -82,20 +81,19 @@ public class GoogleTasksService extends IntentService {
 		transport = AndroidHttp.newCompatibleTransport();
 		jsonFactory = new GsonFactory();
 
-		client = new com.google.api.services.tasks.Tasks.Builder(transport,
-				jsonFactory, credential).setApplicationName("PhoneToDesktop")
-				.build();
+		client = new com.google.api.services.tasks.Tasks.Builder(transport, jsonFactory,
+				credential).setApplicationName("PhoneToDesktop").build();
 	}
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		Utils.log("onStartCommand "+ intent.getAction());
+		Utils.log("onStartCommand " + intent.getAction());
 		if (Utils.ACTION_SEND_TASKS.equals(intent.getAction())) {
 			// We start foregroud as soon as we receive an ACTION_SEND_TASKS
 			// action. This will make the service foreground when
 			// SendTaskActivity goes away
-			startForeground(NOTIFICATION_SEND,
-					buildNotification(NOTIFICATION_SEND).build());
+			startForeground(NOTIFICATION_SEND, buildNotification(NOTIFICATION_SEND)
+					.build());
 		}
 		return super.onStartCommand(intent, flags, startId);
 	}
@@ -104,15 +102,13 @@ public class GoogleTasksService extends IntentService {
 	protected void onHandleIntent(Intent intent) {
 		if (intent != null) {
 			final String action = intent.getAction();
-			Utils.log("onHandleIntent "+ intent.getAction());
+			Utils.log("onHandleIntent " + intent.getAction());
 			long[] tasks_ids = intent.getLongArrayExtra(Utils.EXTRA_TASKS_IDS);
 			try {
 				if (action.equals(Utils.ACTION_PROCESS_TASK)) {
 					long task_id = intent.getLongExtra(Utils.EXTRA_TASK_ID, -1);
-					LocalTask task = DatabaseHelper.getInstance(this).getTask(
-							task_id);
-					final Intent result = new Intent(
-							Utils.ACTION_RESULT_PROCESS_TASK);
+					LocalTask task = DatabaseHelper.getInstance(this).getTask(task_id);
+					final Intent result = new Intent(Utils.ACTION_RESULT_PROCESS_TASK);
 					result.putExtra(Utils.EXTRA_TASK_ID, task.getLocalId());
 					if (isOnline()) {
 						processOptions(task);
@@ -120,23 +116,21 @@ public class GoogleTasksService extends IntentService {
 							@Override
 							public void run() {
 								if (cache_unshorten != null) {
-									result.putExtra(
-											Utils.EXTRA_CACHE_UNSHORTEN,
+									result.putExtra(Utils.EXTRA_CACHE_UNSHORTEN,
 											cache_unshorten);
 								}
 								if (cache_titles != null) {
 									result.putExtra(Utils.EXTRA_CACHE_TITLES,
 											cache_titles);
 								}
-								LocalBroadcastManager.getInstance(
-										GoogleTasksService.this).sendBroadcast(
-										result);
+								LocalBroadcastManager
+										.getInstance(GoogleTasksService.this)
+										.sendBroadcast(result);
 							}
 						});
 					} else {
 						revertTaskToReady(tasks_ids);
-						LocalBroadcastManager.getInstance(this).sendBroadcast(
-								result);
+						LocalBroadcastManager.getInstance(this).sendBroadcast(result);
 					}
 				} else if (action.equals(Utils.ACTION_SEND_TASKS)) {
 					if (isOnline()) {
@@ -144,8 +138,7 @@ public class GoogleTasksService extends IntentService {
 						if (tasks_ids.length == 1) {
 							DatabaseHelper databaseHelper = DatabaseHelper
 									.getInstance(this);
-							LocalTask task = databaseHelper
-									.getTask(tasks_ids[0]);
+							LocalTask task = databaseHelper.getTask(tasks_ids[0]);
 							handleActionSend(task);
 						} else {
 							handleActionSendMultiple(tasks_ids);
@@ -156,24 +149,21 @@ public class GoogleTasksService extends IntentService {
 						revertTaskToReady(tasks_ids);
 						((NotificationManager) getSystemService(NOTIFICATION_SERVICE))
 								.notify(NOTIFICATION_SEND_LATER,
-										buildNotification(
-												NOTIFICATION_SEND_LATER)
+										buildNotification(NOTIFICATION_SEND_LATER)
 												.build());
 					}
 				} else if (action.equals(Utils.ACTION_LIST_TASKS)) {
 					handleActionList();
 				} else if (action.equals(Utils.ACTION_REMOVE_TASK)) {
-					handleActionRemove(intent
-							.getStringExtra(Utils.EXTRA_TASK_ID));
+					handleActionRemove(intent.getStringExtra(Utils.EXTRA_TASK_ID));
 				}
 			} catch (UserRecoverableAuthIOException userRecoverableException) {
 				Utils.log(Log.getStackTraceString(userRecoverableException));
 				stopForeground(true);
 				revertTaskToReady(tasks_ids);
-				((NotificationManager) getSystemService(NOTIFICATION_SERVICE))
-						.notify(NOTIFICATION_NEED_AUTHORIZE,
-								buildNotification(NOTIFICATION_NEED_AUTHORIZE)
-										.build());
+				((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(
+						NOTIFICATION_NEED_AUTHORIZE,
+						buildNotification(NOTIFICATION_NEED_AUTHORIZE).build());
 			} catch (IOException ioException) {
 				Utils.log(Log.getStackTraceString(ioException));
 				if (action.equals(Utils.ACTION_SEND_TASKS)) {
@@ -181,23 +171,20 @@ public class GoogleTasksService extends IntentService {
 					revertTaskToReady(tasks_ids);
 					((NotificationManager) getSystemService(NOTIFICATION_SERVICE))
 							.notify(NOTIFICATION_ERROR,
-									buildNotification(NOTIFICATION_ERROR)
-											.build());
+									buildNotification(NOTIFICATION_ERROR).build());
 				} else {
 					Intent broadcast = new Intent(Utils.ACTION_LIST_TASKS);
 					broadcast.putExtra(Utils.EXTRA_ERROR_TEXT,
 							getString(R.string.txt_error_list));
-					LocalBroadcastManager.getInstance(this).sendBroadcast(
-							broadcast);
+					LocalBroadcastManager.getInstance(this).sendBroadcast(broadcast);
 				}
 			} catch (NullPointerException npe) {
 				Utils.log(Log.getStackTraceString(npe));
 				stopForeground(true);
 				revertTaskToReady(tasks_ids);
-				((NotificationManager) getSystemService(NOTIFICATION_SERVICE))
-						.notify(NOTIFICATION_NEED_AUTHORIZE,
-								buildNotification(NOTIFICATION_NEED_AUTHORIZE)
-										.build());
+				((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(
+						NOTIFICATION_NEED_AUTHORIZE,
+						buildNotification(NOTIFICATION_NEED_AUTHORIZE).build());
 			}
 		}
 	}
@@ -230,8 +217,7 @@ public class GoogleTasksService extends IntentService {
 			builder.setAutoCancel(true)
 					.setSmallIcon(android.R.drawable.stat_notify_error)
 					.setTicker(getString(R.string.txt_error_no_connection))
-					.setContentTitle(
-							getString(R.string.txt_error_no_connection))
+					.setContentTitle(getString(R.string.txt_error_no_connection))
 					.setContentText(getString(R.string.txt_error_try_again));
 			return builder;
 		case NOTIFICATION_ERROR:
@@ -262,26 +248,25 @@ public class GoogleTasksService extends IntentService {
 		}
 	}
 
-	private void handleActionSend(LocalTask task)
-			throws UserRecoverableAuthIOException, IOException {
+	private void handleActionSend(LocalTask task) throws UserRecoverableAuthIOException,
+			IOException {
 
 		PersistCallback callback = new PersistCallback() {
 			@Override
 			public void run() {
-				LocalBroadcastManager.getInstance(GoogleTasksService.this)
-						.sendBroadcast(
-								new Intent(Utils.ACTION_LIST_LOCAL_TASKS));
+				LocalBroadcastManager.getInstance(GoogleTasksService.this).sendBroadcast(
+						new Intent(Utils.ACTION_LIST_LOCAL_TASKS));
 			}
 		};
 
 		task.setStatus(Status.SENDING).persist(callback);
-		
+
 		Utils.log("Sending task " + task.getTitle());
 
 		Task new_task = new Task().setTitle(task.getTitle());
-		client.tasks().insert(list_id, new_task).execute();
+		new_task = client.tasks().insert(list_id, new_task).setFields("id").execute();
 
-		task.setStatus(Status.SENT).persist(callback);
+		task.setGoogleId(new_task.getId()).setStatus(Status.SENT).persist(callback);
 
 	}
 
@@ -294,8 +279,8 @@ public class GoogleTasksService extends IntentService {
 			String contentText = getString(R.string.txt_sending_multiple);
 			contentText = String.format(contentText, i + 1, tasks_ids.length);
 			builder.setContentText(contentText);
-			((NotificationManager) getSystemService(NOTIFICATION_SERVICE))
-					.notify(NOTIFICATION_SEND, builder.build());
+			((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).notify(
+					NOTIFICATION_SEND, builder.build());
 
 			DatabaseHelper databaseHelper = DatabaseHelper.getInstance(this);
 			LocalTask task = databaseHelper.getTask(task_id);
@@ -304,8 +289,7 @@ public class GoogleTasksService extends IntentService {
 		}
 	}
 
-	private void handleActionList() throws UserRecoverableAuthIOException,
-			IOException {
+	private void handleActionList() throws UserRecoverableAuthIOException, IOException {
 		List<Task> list = client.tasks().list(list_id).execute().getItems();
 
 		if (list != null) {
@@ -349,8 +333,8 @@ public class GoogleTasksService extends IntentService {
 				String links = Utils.filterLinks(task.getTitle()).trim();
 				parts = urlOptions.unshorten(links.split(" "));
 				cache_unshorten = parts.clone();
-				task.setTitle(Utils.replace(task.getTitle(), parts))
-						.removeOption(Options.OPTION_UNSHORTEN);
+				task.setTitle(Utils.replace(task.getTitle(), parts)).removeOption(
+						Options.OPTION_UNSHORTEN);
 			}
 			if (task.hasOption(Options.OPTION_GETTITLES)) {
 				task.setStatus(Status.PROCESSING_TITLE).persist();
@@ -366,8 +350,8 @@ public class GoogleTasksService extends IntentService {
 			parts = Utils.filterLinks(task.getTitle()).split(" ");
 			parts = urlOptions.unshorten(parts);
 			cache_unshorten = parts.clone();
-			task.setTitle(Utils.replace(task.getTitle(), parts))
-					.removeOption(Options.OPTION_UNSHORTEN);
+			task.setTitle(Utils.replace(task.getTitle(), parts)).removeOption(
+					Options.OPTION_UNSHORTEN);
 			if (!task.hasOption(Options.OPTION_GETTITLES)) {
 				task.setStatus(Status.READY);
 				break;
@@ -377,8 +361,7 @@ public class GoogleTasksService extends IntentService {
 			parts = urlOptions.getTitles(parts);
 			cache_titles = parts.clone();
 			task.setTitle(Utils.appendInBrackets(task.getTitle(), parts))
-					.removeOption(Options.OPTION_GETTITLES)
-					.setStatus(Status.READY);
+					.removeOption(Options.OPTION_GETTITLES).setStatus(Status.READY);
 			break;
 		}
 	}
